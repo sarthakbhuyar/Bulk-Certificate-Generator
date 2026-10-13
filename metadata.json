@@ -1,0 +1,6 @@
+{
+  "name": "CertiBatch - Bulk Certificate Generator & API Hub",
+  "description": "Production-ready Bulk Certificate Generator backend API with asynchronous job tracking, fault-tolerant individual failure handling, tamper-proof verification, and live testing suite.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
