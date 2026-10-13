@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CertiBatch - Bulk Certificate Generator</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- JSZip for Bulk Downloads -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .font-serif-title { font-family: 'Cinzel', serif; }
+    .font-certificate-name { font-family: 'Playfair Display', serif; }
+    .font-code { font-family: 'Fira Code', monospace; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-amber-500/30 selection:text-amber-200">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/90 backdrop-blur-md">
+    <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+      <div class="flex items-center gap-3">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-black text-xl shadow-md shadow-amber-500/20">
+          🏅
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-lg tracking-tight text-white font-serif-title">
+              Certi<span class="text-amber-400">Batch</span>
+            </span>
+            <span class="rounded bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300 ring-1 ring-amber-400/30">
+              FastAPI Engine
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Bulk Generation, Asynchronous Queue & Verification</p>
+        </div>
+      </div>
+
+      <!-- Nav Tabs -->
+      <nav class="flex items-center gap-1.5 rounded-xl bg-slate-900/90 p-1.5 ring-1 ring-slate-800 text-xs">
+        <button id="tabBtnStudio" onclick="switchTab('studio')" class="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 font-semibold bg-amber-500 text-slate-950 transition-all">
+          <span>✨ Generator Studio</span>
+        </button>
+        <button id="tabBtnJobs" onclick="switchTab('jobs')" class="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all">
+          <span>📊 Job Monitor</span>
+          <span id="jobsCountBadge" class="hidden rounded-full bg-blue-500 px-1.5 text-[10px] text-white font-bold">0</span>
+        </button>
+        <button id="tabBtnVerify" onclick="switchTab('verify')" class="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all">
+          <span>🛡️ Verify Credential</span>
+        </button>
+        <a href="/docs" target="_blank" class="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 font-medium text-amber-400 hover:bg-slate-800 transition-all">
+          <span>📖 Swagger Docs ↗</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 mx-auto max-w-7xl w-full px-4 py-8 sm:px-6">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: GENERATOR STUDIO & SIDE-BY-SIDE PREVIEW -->
+    <!-- ========================================== -->
+    <div id="tabStudio" class="space-y-6">
+      <!-- Title & Presets Bar -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 class="text-3xl font-bold tracking-tight text-white font-serif-title">
+            Bulk Certificate <span class="text-amber-400">Generator Studio</span>
+          </h1>
+          <p class="mt-1 text-sm text-slate-400">
+            Submit generation batches, validate recipient lists, and monitor queue progress with fault-tolerant individual failure isolation.
+          </p>
+        </div>
+
+        <!-- 1-Click Quick Demos -->
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mr-1">Quick Presets:</span>
+          <button onclick="applyPreset('ai')" class="rounded-xl bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-slate-300 hover:text-white hover:border-amber-500/50 transition-all">
+            🎓 Stanford AI (10 Valid)
+          </button>
+          <button onclick="applyPreset('fault')" class="rounded-xl bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-amber-300 hover:text-white hover:border-amber-500/50 transition-all">
+            ⚠️ Fault Test (Mixed)
+          </button>
+          <button onclick="applyPreset('bulk')" class="rounded-xl bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-blue-300 hover:text-white hover:border-blue-500/50 transition-all">
+            ⚡ Enterprise Bulk (20)
+          </button>
+        </div>
+      </div>
+
+      <!-- Grid: Form (Left 7 cols) & Live Preview (Right 5 cols) -->
+      <div class="grid grid-cols-1 gap-8 lg:grid-cols-12">
+        <!-- LEFT: Form Inputs -->
+        <div class="lg:col-span-7 space-y-6">
+          <form id="generatorForm" onsubmit="handleFormSubmit(event)" class="space-y-6">
+            <!-- Section 1: Certificate Master Details -->
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl">
+              <h2 class="text-sm font-bold text-white border-b border-slate-800 pb-2 mb-4 flex items-center gap-2">
+                <span>🏛️ 1. Certificate & Organization Metadata</span>
+              </h2>
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Event / Course / Award Name *</label>
+                  <input type="text" id="inputEventName" required oninput="updateLivePreview()" value="Executive Cloud & Distributed Systems Architecture" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-sm text-white focus:border-amber-500 focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Issuing Organization *</label>
+                  <input type="text" id="inputOrgName" required oninput="updateLivePreview()" value="Global Institute of Software Engineering" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-sm text-white focus:border-amber-500 focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Date of Issuance *</label>
+                  <input type="text" id="inputIssueDate" required oninput="updateLivePreview()" value="October 13, 2026" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-sm text-white focus:border-amber-500 focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Signatory Full Name *</label>
+                  <input type="text" id="inputSignatoryName" required oninput="updateLivePreview()" value="Dr. Evelyn Sterling" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-sm text-white focus:border-amber-500 focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Signatory Official Title</label>
+                  <input type="text" id="inputSignatoryTitle" oninput="updateLivePreview()" value="Dean of Technology & Fellowship Chair" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-sm text-white focus:border-amber-500 focus:outline-none">
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Predefined Template Theme</label>
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button type="button" onclick="setTheme('royal_gold')" class="theme-btn border border-amber-500 bg-amber-950/30 text-white rounded-lg p-2 text-xs font-semibold" data-theme="royal_gold">Royal Gold</button>
+                    <button type="button" onclick="setTheme('executive_navy')" class="theme-btn border border-slate-800 bg-slate-950 text-slate-400 rounded-lg p-2 text-xs font-semibold" data-theme="executive_navy">Executive Navy</button>
+                    <button type="button" onclick="setTheme('academic_emerald')" class="theme-btn border border-slate-800 bg-slate-950 text-slate-400 rounded-lg p-2 text-xs font-semibold" data-theme="academic_emerald">Academic Emerald</button>
+                    <button type="button" onclick="setTheme('modern_tech')" class="theme-btn border border-slate-800 bg-slate-950 text-slate-400 rounded-lg p-2 text-xs font-semibold" data-theme="modern_tech">Modern Indigo</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 2: Recipient List Editor -->
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl">
+              <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+                <div>
+                  <h2 class="text-sm font-bold text-white flex items-center gap-2">
+                    <span>👥 2. Recipient Batch (<span id="recipientCountText">5</span>)</span>
+                  </h2>
+                  <p class="text-xs text-slate-400">One recipient failure will not stop others from generating.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" onclick="promptCsvImport()" class="rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-300 hover:text-white">Paste CSV</button>
+                  <button type="button" onclick="addRecipientRow('', '', '')" class="rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1.5 text-xs font-semibold hover:bg-amber-500/30">+ Add Row</button>
+                </div>
+              </div>
+
+              <!-- Recipient Rows Container -->
+              <div id="recipientRowsContainer" class="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                <!-- Dynamically populated rows -->
+              </div>
+            </div>
+
+            <!-- Section 3: Submit Action -->
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl flex items-center justify-between">
+              <div class="flex items-center gap-2 text-xs text-slate-300">
+                <input type="checkbox" id="chkAsync" checked class="rounded border-slate-700 bg-slate-950 text-amber-500">
+                <label for="chkAsync" class="cursor-pointer">Asynchronous Background Queue (Recommended)</label>
+              </div>
+              <button type="submit" id="btnSubmitJob" class="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-amber-500/20 hover:from-amber-400 hover:to-amber-500 cursor-pointer transition-all">
+                🚀 Generate Certificates
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- RIGHT: Live Certificate Template Preview (Side-by-Side!) -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="sticky top-20 rounded-2xl border border-slate-800 bg-slate-900/90 p-5 shadow-2xl">
+            <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-3">
+              <div>
+                <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+                  <span>👁️ Live Certificate Preview</span>
+                </h3>
+                <p id="previewSubtitle" class="text-xs text-slate-400">Sample 1 of 5</p>
+              </div>
+              <div class="flex items-center gap-1.5 text-xs">
+                <button type="button" onclick="cyclePreview(-1)" class="rounded bg-slate-800 px-2 py-1 text-slate-300 hover:bg-slate-700">◀ Prev</button>
+                <button type="button" onclick="cyclePreview(1)" class="rounded bg-slate-800 px-2 py-1 text-slate-300 hover:bg-slate-700">Next ▶</button>
+              </div>
+            </div>
+
+            <!-- Real-time SVG Vector Render Container -->
+            <div id="svgPreviewContainer" class="rounded-xl overflow-hidden border border-slate-700 bg-white shadow-xl transition-all">
+              <!-- Rendered SVG will be injected here -->
+            </div>
+
+            <div class="mt-4 rounded-xl bg-slate-950/70 p-3 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+              <div class="font-semibold text-slate-200">✨ Predefined Template Specifications:</div>
+              <div>• Landscape 1200×850 vector diploma format.</div>
+              <div>• Guilloche ornamental border & embossed gold authenticity seal.</div>
+              <div>• Embedded cryptographic SHA-256 verification token.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: JOB MONITOR & BATCH PROGRESS -->
+    <!-- ========================================== -->
+    <div id="tabJobs" class="hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 class="text-3xl font-bold tracking-tight text-white font-serif-title">
+            Job Monitor & <span class="text-amber-400">Progress Tracker</span>
+          </h1>
+          <p class="text-sm text-slate-400">Watch batch generation progress, inspect individual successes/failures, and export certificates.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="refreshJobsList()" class="rounded-xl bg-slate-900 border border-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white">
+            🔄 Refresh Status
+          </button>
+          <button id="btnBulkExportZip" onclick="downloadJobZip()" class="hidden rounded-xl bg-amber-500 text-slate-950 px-4 py-2 text-xs font-bold shadow-md hover:bg-amber-400">
+            📦 Download All as ZIP
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Job Progress Card -->
+      <div id="activeJobCard" class="rounded-2xl border border-slate-800 bg-slate-900/90 p-6 shadow-xl space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-800 pb-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span id="jobDetailId" class="font-code text-xs text-amber-400 font-bold">job_...</span>
+              <span id="jobDetailStatusBadge" class="rounded-full bg-blue-500/20 text-blue-300 px-2.5 py-0.5 text-xs font-semibold">Processing</span>
+            </div>
+            <h2 id="jobDetailEvent" class="text-lg font-bold text-white">Event Name</h2>
+            <p id="jobDetailOrg" class="text-xs text-slate-400">Issued by Organization</p>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-400 block">Signatory:</span>
+            <span id="jobDetailSignatory" class="text-sm font-semibold text-slate-200">Signatory</span>
+          </div>
+        </div>
+
+        <!-- Progress Counter Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="rounded-xl border border-slate-800 bg-slate-950 p-3 text-center">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Total</span>
+            <span id="statTotal" class="text-xl font-bold text-white">0</span>
+          </div>
+          <div class="rounded-xl border border-slate-800 bg-slate-950 p-3 text-center">
+            <span class="text-[10px] text-blue-400 uppercase font-semibold block">Processed</span>
+            <span id="statProcessed" class="text-xl font-bold text-blue-400">0</span>
+          </div>
+          <div class="rounded-xl border border-emerald-900/50 bg-emerald-950/20 p-3 text-center">
+            <span class="text-[10px] text-emerald-400 uppercase font-semibold block">Succeeded</span>
+            <span id="statSuccess" class="text-xl font-bold text-emerald-300">0</span>
+          </div>
+          <div class="rounded-xl border border-rose-900/50 bg-rose-950/20 p-3 text-center">
+            <span class="text-[10px] text-rose-400 uppercase font-semibold block">Failed</span>
+            <span id="statFailure" class="text-xl font-bold text-rose-400">0</span>
+          </div>
+        </div>
+
+        <!-- Animated Progress Bar -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs">
+            <span class="font-medium text-slate-300">Progress</span>
+            <span id="statPercentageText" class="font-bold text-amber-400 font-code">0%</span>
+          </div>
+          <div class="h-3 w-full rounded-full bg-slate-950 border border-slate-800 overflow-hidden p-0.5">
+            <div id="statProgressBar" class="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-400 transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recipient Outcomes Table -->
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/90 shadow-xl overflow-hidden">
+        <div class="p-4 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-white">Generated Recipient Credentials</h3>
+          <span id="tableCountBadge" class="text-xs bg-slate-800 px-2 py-0.5 rounded text-slate-300">0 items</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="border-b border-slate-800 bg-slate-950/90 text-slate-400 uppercase text-[10px] font-semibold">
+              <tr>
+                <th class="px-4 py-3">Recipient Name</th>
+                <th class="px-4 py-3">Email</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-4 py-3">Certificate ID</th>
+                <th class="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="recipientTableBody" class="divide-y divide-slate-800/60">
+              <!-- Populated via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: VERIFY CREDENTIAL PORTAL -->
+    <!-- ========================================== -->
+    <div id="tabVerify" class="hidden max-w-3xl mx-auto space-y-6">
+      <div class="text-center">
+        <h1 class="text-3xl font-bold tracking-tight text-white font-serif-title">
+          Certificate <span class="text-amber-400">Authenticity Verification</span>
+        </h1>
+        <p class="mt-2 text-sm text-slate-400">Validate cryptographic authenticity and issuing credentials.</p>
+      </div>
+
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/90 p-6 shadow-2xl">
+        <form onsubmit="handleVerifySubmit(event)" class="flex gap-2">
+          <input type="text" id="verifyInput" required placeholder="Enter Certificate ID or Verification Hash (e.g. CERT-2026-0101)..." class="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white focus:border-amber-500 focus:outline-none">
+          <button type="submit" class="rounded-xl bg-amber-500 text-slate-950 px-6 py-3 text-sm font-bold hover:bg-amber-400">Verify</button>
+        </form>
+      </div>
+
+      <div id="verifyResultContainer" class="hidden"></div>
+    </div>
+
+  </main>
+
+  <!-- Modal for Certificate Viewing -->
+  <div id="certModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/85 backdrop-blur-md p-4">
+    <div class="relative max-w-4xl w-full bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-950">
+        <h3 class="text-sm font-bold text-white">Official Certificate Credential</h3>
+        <button onclick="closeCertModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+      <div id="modalCertSvgContainer" class="p-6 overflow-y-auto flex-1 bg-slate-950/40"></div>
+      <div class="p-4 border-t border-slate-800 bg-slate-950 flex justify-end gap-2">
+        <button onclick="downloadModalSvg()" class="rounded-lg bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400">Download Vector SVG</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Client-side Interactive Logic -->
+  <script>
+    let currentTheme = 'royal_gold';
+    let sampleRecipients = [
+      { name: 'Sarah Connor', email: 's.connor@cyberdyne.org', score: '98% (Honors)' },
+      { name: 'Alex Rivera', email: 'arivera@polytechnic.edu', score: '94%' },
+      { name: 'Priya Sharma', email: 'priya.sharma@techinst.ac.in', score: '99% (Distinction)' },
+      { name: 'Marcus Vance', email: 'm.vance@studio.com', score: '91%' },
+      { name: 'Elena Rostova', email: 'elena@datascience.io', score: '96%' }
+    ];
+    let previewIndex = 0;
+    let currentJobId = null;
+    let pollInterval = null;
+    let currentModalSvg = '';
+    let currentModalFilename = 'certificate.svg';
+
+    // Initialize UI on load
+    window.addEventListener('DOMContentLoaded', () => {
+      renderRecipientRows();
+      updateLivePreview();
+      checkExistingJobs();
+    });
+
+    function switchTab(tab) {
+      document.getElementById('tabStudio').classList.add('hidden');
+      document.getElementById('tabJobs').classList.add('hidden');
+      document.getElementById('tabVerify').classList.add('hidden');
+
+      document.getElementById('tabBtnStudio').className = "rounded-lg px-3.5 py-1.5 font-medium text-slate-300 hover:text-white";
+      document.getElementById('tabBtnJobs').className = "rounded-lg px-3.5 py-1.5 font-medium text-slate-300 hover:text-white";
+      document.getElementById('tabBtnVerify').className = "rounded-lg px-3.5 py-1.5 font-medium text-slate-300 hover:text-white";
+
+      if (tab === 'studio') {
+        document.getElementById('tabStudio').classList.remove('hidden');
+        document.getElementById('tabBtnStudio').className = "rounded-lg px-3.5 py-1.5 font-semibold bg-amber-500 text-slate-950";
+      } else if (tab === 'jobs') {
+        document.getElementById('tabJobs').classList.remove('hidden');
+        document.getElementById('tabBtnJobs').className = "rounded-lg px-3.5 py-1.5 font-semibold bg-amber-500 text-slate-950";
+        refreshJobsList();
+      } else if (tab === 'verify') {
+        document.getElementById('tabVerify').classList.remove('hidden');
+        document.getElementById('tabBtnVerify').className = "rounded-lg px-3.5 py-1.5 font-semibold bg-amber-500 text-slate-950";
+      }
+    }
+
+    function setTheme(t) {
+      currentTheme = t;
+      document.querySelectorAll('.theme-btn').forEach(btn => {
+        if (btn.dataset.theme === t) {
+          btn.className = "theme-btn border border-amber-500 bg-amber-950/30 text-white rounded-lg p-2 text-xs font-semibold";
+        } else {
+          btn.className = "theme-btn border border-slate-800 bg-slate-950 text-slate-400 rounded-lg p-2 text-xs font-semibold";
+        }
+      });
+      updateLivePreview();
+    }
+
+    function renderRecipientRows() {
+      const container = document.getElementById('recipientRowsContainer');
+      container.innerHTML = '';
+      sampleRecipients.forEach((rec, idx) => {
+        const row = document.createElement('div');
+        row.className = "flex items-center gap-2 p-2 rounded-xl border border-slate-800 bg-slate-950/70";
+        row.innerHTML = `
+          <span class="text-[10px] font-bold text-slate-500 w-4">${idx + 1}</span>
+          <input type="text" placeholder="Name *" value="${rec.name}" oninput="updateRecipient(${idx}, 'name', this.value)" class="flex-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-xs text-white">
+          <input type="email" placeholder="Email *" value="${rec.email}" oninput="updateRecipient(${idx}, 'email', this.value)" class="flex-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-xs text-white">
+          <input type="text" placeholder="Score" value="${rec.score || ''}" oninput="updateRecipient(${idx}, 'score', this.value)" class="w-24 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-xs text-white">
+          <button type="button" onclick="removeRecipientRow(${idx})" class="text-slate-500 hover:text-rose-400 px-1 font-bold">✕</button>
+        `;
+        container.appendChild(row);
+      });
+      document.getElementById('recipientCountText').innerText = sampleRecipients.length;
+    }
+
+    function addRecipientRow(name, email, score) {
+      sampleRecipients.push({ name, email, score });
+      renderRecipientRows();
+      updateLivePreview();
+    }
+
+    function removeRecipientRow(idx) {
+      if (sampleRecipients.length <= 1) return;
+      sampleRecipients.splice(idx, 1);
+      renderRecipientRows();
+      updateLivePreview();
+    }
+
+    function updateRecipient(idx, field, val) {
+      sampleRecipients[idx][field] = val;
+      updateLivePreview();
+    }
+
+    function promptCsvImport() {
+      const csv = prompt("Paste CSV data in format: Name, Email, Score");
+      if (!csv) return;
+      const lines = csv.split('\n');
+      sampleRecipients = [];
+      lines.forEach(l => {
+        const parts = l.split(',').map(s => s.trim());
+        if (parts.length >= 2) {
+          sampleRecipients.push({ name: parts[0], email: parts[1], score: parts[2] || '' });
+        }
+      });
+      renderRecipientRows();
+      updateLivePreview();
+    }
+
+    function applyPreset(type) {
+      if (type === 'ai') {
+        document.getElementById('inputEventName').value = "Autonomous AI & LLM Systems Engineering";
+        document.getElementById('inputOrgName').value = "Stanford Center for Advanced Computation";
+        document.getElementById('inputSignatoryName').value = "Dr. Andrew Ng & Prof. Christopher Manning";
+        document.getElementById('inputSignatoryTitle').value = "Distinguished Research Directors";
+        setTheme('royal_gold');
+        sampleRecipients = [
+          { name: "Katherine Vance", email: "kvance@stanford.edu", score: "99% (Summa Cum Laude)" },
+          { name: "Liam Takahashi", email: "liam.t@tokyotech.jp", score: "96% (Distinction)" },
+          { name: "Chen Wei", email: "chen.wei@tsinghua.edu.cn", score: "98% (Honors)" },
+          { name: "Julian Mercer", email: "jmercer@oxford.ac.uk", score: "92%" },
+          { name: "Zoe Deschanel", email: "zoe@sorbonne.fr", score: "97% (Distinction)" }
+        ];
+      } else if (type === 'fault') {
+        document.getElementById('inputEventName').value = "Fault Resilience & Systems Engineering";
+        document.getElementById('inputOrgName').value = "Reliability Institute";
+        setTheme('academic_emerald');
+        sampleRecipients = [
+          { name: "Alice Goodall", email: "alice@valid.org", score: "98%" },
+          { name: "Bob Corrupt Email", email: "bad_email_no_domain", score: "80%" }, // Invalid email!
+          { name: "David Carpenter", email: "david@valid.org", score: "94%" },
+          { name: "X", email: "shortname@valid.org", score: "90%" }, // Invalid name!
+          { name: "Eva Rostova", email: "eva@valid.org", score: "99%" }
+        ];
+      } else if (type === 'bulk') {
+        document.getElementById('inputEventName').value = "Cloud Native Architecture Accreditation";
+        document.getElementById('inputOrgName').value = "Cloud Native Computing Foundation";
+        setTheme('executive_navy');
+        sampleRecipients = Array.from({ length: 20 }, (_, i) => ({
+          name: `Candidate ${i + 1} Enterprise`,
+          email: `candidate.${i + 1}@cloud.io`,
+          score: `${90 + (i % 10)}%`
+        }));
+      }
+      renderRecipientRows();
+      updateLivePreview();
+    }
+
+    function cyclePreview(delta) {
+      previewIndex = (previewIndex + delta + sampleRecipients.length) % sampleRecipients.length;
+      updateLivePreview();
+    }
+
+    function updateLivePreview() {
+      const rec = sampleRecipients[previewIndex] || { name: 'Recipient Name', score: '98%' };
+      const eventName = document.getElementById('inputEventName').value || 'Course Title';
+      const orgName = document.getElementById('inputOrgName').value || 'Organization Name';
+      const issueDate = document.getElementById('inputIssueDate').value || 'October 13, 2026';
+      const signatory = document.getElementById('inputSignatoryName').value || 'Signatory Name';
+      const sigTitle = document.getElementById('inputSignatoryTitle').value || 'Authorized Signatory';
+
+      document.getElementById('previewSubtitle').innerText = `Sample ${previewIndex + 1} of ${sampleRecipients.length}: ${rec.name || 'Recipient'}`;
+
+      // Render vector SVG client-side for instant 60fps real-time preview
+      const svg = generateClientSvg({
+        recipientName: rec.name || 'Recipient Name',
+        eventName,
+        orgName,
+        issueDate,
+        signatory,
+        sigTitle,
+        score: rec.score,
+        theme: currentTheme
+      });
+
+      document.getElementById('svgPreviewContainer').innerHTML = svg;
+    }
+
+    function generateClientSvg(params) {
+      const palettes = {
+        royal_gold: { bg: '#fffdfa', border1: '#b38f28', border2: '#d4af37', text: '#854d0e', name: '#0f172a', s1: '#fef08a', s2: '#eab308' },
+        executive_navy: { bg: '#f8fafc', border1: '#3b82f6', border2: '#1e3a8a', text: '#1e3a8a', name: '#0f172a', s1: '#93c5fd', s2: '#3b82f6' },
+        academic_emerald: { bg: '#fbfdfb', border1: '#047857', border2: '#065f46', text: '#065f46', name: '#022c22', s1: '#6ee7b7', s2: '#10b981' },
+        modern_tech: { bg: '#fafafa', border1: '#8b5cf6', border2: '#6366f1', text: '#4f46e5', name: '#09090b', s1: '#c4b5fd', s2: '#8b5cf6' }
+      };
+      const p = palettes[params.theme] || palettes.royal_gold;
+      const scoreTxt = params.score ? `<text x="600" y="465" font-family="sans-serif" font-size="15" font-weight="600" fill="#059669" text-anchor="middle">Score: ${params.score}</text>` : '';
+
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 850" width="100%" height="100%">
+        <defs>
+          <linearGradient id="sealG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${p.s1}"/><stop offset="100%" stop-color="${p.s2}"/></linearGradient>
+        </defs>
+        <rect width="1200" height="850" fill="${p.bg}"/>
+        <rect x="25" y="25" width="1150" height="800" fill="none" stroke="${p.border1}" stroke-width="4" rx="6"/>
+        <rect x="35" y="35" width="1130" height="780" fill="none" stroke="${p.border2}" stroke-width="1.5" stroke-dasharray="6,4"/>
+        <text x="600" y="110" font-family="'Cinzel', serif" font-size="20" font-weight="700" letter-spacing="4" fill="${p.text}" text-anchor="middle">${params.orgName.toUpperCase()}</text>
+        <line x1="450" y1="125" x2="750" y2="125" stroke="${p.border2}" stroke-width="1.5"/>
+        <text x="600" y="180" font-family="'Cinzel', serif" font-size="38" font-weight="800" letter-spacing="6" fill="${p.text}" text-anchor="middle">CERTIFICATE OF RECOGNITION</text>
+        <text x="600" y="222" font-family="'Inter', sans-serif" font-size="14" font-weight="500" letter-spacing="3" fill="#64748b" text-anchor="middle">THIS PRESTIGIOUS CREDENTIAL IS PROUDLY CONFERRED UPON</text>
+        <text x="600" y="305" font-family="'Playfair Display', serif" font-style="italic" font-size="50" font-weight="700" fill="${p.name}" text-anchor="middle">${params.recipientName}</text>
+        <path d="M 320 330 Q 600 338 880 330" fill="none" stroke="${p.border2}" stroke-width="2"/>
+        <text x="600" y="375" font-family="'Inter', sans-serif" font-size="15" fill="#475569" text-anchor="middle">for distinguished participation and fulfillment of all academic requirements in</text>
+        <text x="600" y="425" font-family="'Cinzel', serif" font-size="26" font-weight="700" fill="${p.text}" text-anchor="middle">${params.eventName}</text>
+        ${scoreTxt}
+        <g transform="translate(600, 595)">
+          <circle cx="0" cy="0" r="54" fill="url(#sealG)"/>
+          <circle cx="0" cy="0" r="48" fill="none" stroke="#fff" stroke-width="2"/>
+          <polygon points="0,-22 6,-8 22,-8 10,2 14,18 0,8 -14,18 -10,2 -22,-8 -6,-8" fill="#fff" opacity="0.9"/>
+          <text x="0" y="30" font-family="sans-serif" font-size="8" font-weight="800" letter-spacing="1.5" fill="#78350f" text-anchor="middle">VERIFIED • AUTHENTIC</text>
+        </g>
+        <g transform="translate(180, 610)">
+          <line x1="0" y1="40" x2="260" y2="40" stroke="#94a3b8" stroke-width="1.5"/>
+          <text x="130" y="30" font-family="sans-serif" font-size="14" font-weight="600" fill="#1e293b" text-anchor="middle">${params.issueDate}</text>
+          <text x="130" y="60" font-family="sans-serif" font-size="11" font-weight="700" fill="#64748b" text-anchor="middle">DATE OF ISSUANCE</text>
+        </g>
+        <g transform="translate(760, 610)">
+          <path d="M 30 18 C 60 5, 80 40, 110 15 C 130 -2, 160 25, 190 12 C 210 2, 230 20, 240 10" fill="none" stroke="#0f172a" stroke-width="2"/>
+          <line x1="0" y1="40" x2="260" y2="40" stroke="#94a3b8" stroke-width="1.5"/>
+          <text x="130" y="58" font-family="'Playfair Display', serif" font-size="15" font-weight="700" fill="#0f172a" text-anchor="middle">${params.signatory}</text>
+          <text x="130" y="74" font-family="sans-serif" font-size="11" fill="#64748b" text-anchor="middle">${params.sigTitle}</text>
+        </g>
+      </svg>`;
+    }
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSubmitJob');
+      btn.innerText = "⏳ Generating...";
+      btn.disabled = true;
+
+      const payload = {
+        event_name: document.getElementById('inputEventName').value,
+        organization_name: document.getElementById('inputOrgName').value,
+        issue_date: document.getElementById('inputIssueDate').value,
+        signatory_name: document.getElementById('inputSignatoryName').value,
+        signatory_title: document.getElementById('inputSignatoryTitle').value,
+        template_theme: currentTheme,
+        recipients: sampleRecipients,
+        async_processing: document.getElementById('chkAsync').checked
+      };
+
+      try {
+        const res = await fetch('/api/v1/jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        currentJobId = data.id;
+        switchTab('jobs');
+        startPollingJob(currentJobId);
+      } catch (err) {
+        alert("Failed to submit job: " + err.message);
+      } finally {
+        btn.innerText = "🚀 Generate Certificates";
+        btn.disabled = false;
+      }
+    }
+
+    function startPollingJob(jobId) {
+      if (pollInterval) clearInterval(pollInterval);
+      pollJobStatus(jobId);
+      pollInterval = setInterval(() => pollJobStatus(jobId), 1000);
+    }
+
+    async function pollJobStatus(jobId) {
+      try {
+        const res = await fetch(`/api/v1/jobs/${jobId}`);
+        if (!res.ok) return;
+        const job = await res.json();
+        updateJobUI(job);
+        if (job.status === 'completed' || job.status === 'partially_completed' || job.status === 'failed') {
+          clearInterval(pollInterval);
+        }
+      } catch (e) {
+        console.error("Poll error", e);
+      }
+    }
+
+    function updateJobUI(job) {
+      document.getElementById('jobDetailId').innerText = job.id;
+      document.getElementById('jobDetailEvent').innerText = job.event_name;
+      document.getElementById('jobDetailOrg').innerText = `Issued by ${job.organization_name} on ${job.issue_date}`;
+      document.getElementById('jobDetailSignatory').innerText = job.signatory_name;
+
+      const badge = document.getElementById('jobDetailStatusBadge');
+      badge.innerText = job.status.replace('_', ' ').toUpperCase();
+      badge.className = job.status === 'completed' ? 'rounded-full bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 text-xs font-semibold' :
+                        (job.status === 'partially_completed' ? 'rounded-full bg-amber-500/20 text-amber-300 px-2.5 py-0.5 text-xs font-semibold' : 'rounded-full bg-blue-500/20 text-blue-300 px-2.5 py-0.5 text-xs font-semibold');
+
+      document.getElementById('statTotal').innerText = job.total_recipients;
+      document.getElementById('statProcessed').innerText = job.processed_count;
+      document.getElementById('statSuccess').innerText = job.success_count;
+      document.getElementById('statFailure').innerText = job.failure_count;
+      document.getElementById('statPercentageText').innerText = `${job.progress_percentage}%`;
+      document.getElementById('statProgressBar').style.width = `${job.progress_percentage}%`;
+
+      if (job.success_count > 0) {
+        document.getElementById('btnBulkExportZip').classList.remove('hidden');
+      }
+
+      // Populate Table
+      const tbody = document.getElementById('recipientTableBody');
+      tbody.innerHTML = '';
+      (job.recipients || []).forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-800/40";
+        tr.innerHTML = `
+          <td class="px-4 py-3 font-semibold text-white">${r.name}</td>
+          <td class="px-4 py-3 font-code text-slate-300">${r.email}</td>
+          <td class="px-4 py-3">
+            ${r.status === 'success' ? '<span class="text-emerald-400 font-bold">✓ Success</span>' : 
+              (r.status === 'failed' ? `<span class="text-rose-400 font-bold">✗ Failed (${r.error_message || 'Error'})</span>` : '<span class="text-blue-400">Processing...</span>')}
+          </td>
+          <td class="px-4 py-3 font-code text-amber-300">${r.certificate_id || '—'}</td>
+          <td class="px-4 py-3 text-right">
+            ${r.certificate_id ? `
+              <button onclick="viewCertificate('${r.certificate_id}')" class="rounded bg-slate-800 px-2 py-1 text-slate-200 hover:bg-slate-700">Preview</button>
+              <a href="/api/v1/certificates/${r.certificate_id}/download" download class="rounded bg-amber-500 text-slate-950 px-2 py-1 font-bold hover:bg-amber-400 ml-1">Download</a>
+            ` : '—'}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById('tableCountBadge').innerText = `${job.recipients.length} recipients`;
+    }
+
+    async function checkExistingJobs() {
+      try {
+        const res = await fetch('/api/v1/jobs');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.jobs && data.jobs.length > 0) {
+          currentJobId = data.jobs[0].id;
+          pollJobStatus(currentJobId);
+        }
+      } catch (e) {}
+    }
+
+    async function refreshJobsList() {
+      if (currentJobId) pollJobStatus(currentJobId);
+      else checkExistingJobs();
+    }
+
+    async function viewCertificate(certId) {
+      try {
+        const res = await fetch(`/api/v1/certificates/${certId}`);
+        const cert = await res.json();
+        currentModalSvg = cert.svg_content;
+        currentModalFilename = `certificate_${cert.recipient_name.replace(/\s+/g, '_')}.svg`;
+        document.getElementById('modalCertSvgContainer').innerHTML = cert.svg_content;
+        document.getElementById('certModal').classList.remove('hidden');
+        document.getElementById('certModal').classList.add('flex');
+      } catch (e) {
+        alert("Failed to load certificate");
+      }
+    }
+
+    function closeCertModal() {
+      document.getElementById('certModal').classList.add('hidden');
+      document.getElementById('certModal').classList.remove('flex');
+    }
+
+    function downloadModalSvg() {
+      const blob = new Blob([currentModalSvg], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = currentModalFilename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function downloadJobZip() {
+      if (!currentJobId) return;
+      const btn = document.getElementById('btnBulkExportZip');
+      btn.innerText = "⏳ Generating ZIP...";
+      try {
+        const res = await fetch(`/api/v1/jobs/${currentJobId}`);
+        const job = await res.json();
+        const zip = new JSZip();
+        const folder = zip.folder(`certificates_${job.id}`);
+
+        for (const r of job.recipients) {
+          if (r.status === 'success' && r.certificate_id) {
+            const cRes = await fetch(`/api/v1/certificates/${r.certificate_id}`);
+            if (cRes.ok) {
+              const cData = await cRes.json();
+              folder.file(`${r.name.replace(/\s+/g, '_')}_${r.certificate_id}.svg`, cData.svg_content);
+            }
+          }
+        }
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `certificates_${job.id}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert("ZIP generation failed: " + err.message);
+      } finally {
+        btn.innerText = "📦 Download All as ZIP";
+      }
+    }
+
+    async function handleVerifySubmit(e) {
+      e.preventDefault();
+      const token = document.getElementById('verifyInput').value.trim();
+      const resContainer = document.getElementById('verifyResultContainer');
+      resContainer.classList.remove('hidden');
+
+      try {
+        const res = await fetch(`/api/v1/certificates/verify/${encodeURIComponent(token)}`);
+        const data = await res.json();
+        if (data.verified && data.certificate) {
+          const c = data.certificate;
+          resContainer.innerHTML = `
+            <div class="rounded-2xl border border-emerald-500/50 bg-slate-900 p-6 shadow-xl space-y-3">
+              <div class="flex items-center gap-2 text-emerald-400 font-bold text-base">
+                <span>✓ Valid & Authentic Credential Verified</span>
+              </div>
+              <div class="text-sm space-y-1">
+                <div>Recipient: <strong class="text-white text-base">${c.recipient_name}</strong></div>
+                <div>Course/Event: <strong class="text-slate-200">${c.event_name}</strong></div>
+                <div>Authority: <strong class="text-slate-200">${c.organization_name}</strong></div>
+                <div>Issue Date: <strong class="text-slate-200">${c.issue_date}</strong></div>
+                <div>Signatory: <strong class="text-slate-200">${c.signatory_name}</strong></div>
+              </div>
+              <div class="font-code text-xs text-blue-400 pt-2 border-t border-slate-800">
+                Hash: ${c.verification_hash}
+              </div>
+            </div>
+          `;
+        } else {
+          resContainer.innerHTML = `
+            <div class="rounded-2xl border border-rose-500/50 bg-slate-900 p-6 shadow-xl">
+              <div class="text-rose-400 font-bold text-base">✗ Verification Failed</div>
+              <p class="text-xs text-slate-400 mt-1">${data.message || 'No record found matching this token.'}</p>
+            </div>
+          `;
+        }
+      } catch (err) {
+        resContainer.innerHTML = `<div class="text-rose-400">Error: ${err.message}</div>`;
+      }
+    }
+  </script>
+</body>
+</html>
